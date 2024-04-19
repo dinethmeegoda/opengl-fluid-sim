@@ -1,8 +1,5 @@
-#include "glm/ext/matrix_transform.hpp"
-#define GLM_ENABLE_EXPERIMENTAL
 #include "editor.h"
 
-#include "glm/gtx/transform.hpp"
 #include <SDL.h>
 #include <SDL_events.h>
 #include <SDL_keycode.h>
@@ -12,7 +9,7 @@
 
 #include <iostream>
 
-Editor::Editor() : m_square(), m_cube(), m_prog_flat(), m_camera() {}
+Editor::Editor() : m_square(), m_prog_flat(), m_camera() {}
 
 Editor::~Editor() {
   glDeleteVertexArrays(1, &vao);
@@ -34,7 +31,7 @@ int Editor::initialize(SDL_Window *window, SDL_GLContext gl_context) {
     return 1;
   }
 
-  // Set a few settings/modes in OpenGL renderin
+  // Set a few settings/modes in OpenGL rendering
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_LINE_SMOOTH);
   glEnable(GL_POLYGON_SMOOTH);
@@ -50,7 +47,6 @@ int Editor::initialize(SDL_Window *window, SDL_GLContext gl_context) {
   glGenVertexArrays(1, &vao);
 
   m_square.create();
-  m_cube.create();
   m_prog_flat.create("passthrough.vert.glsl", "flat.frag.glsl");
 
   // We have to have a VAO bound in OpenGL 3.2 Core. But if we're not
@@ -68,17 +64,10 @@ void Editor::paint() {
   m_camera.width = m_width;
   m_camera.height = m_height;
   glViewport(0, 0, m_width, m_height);
-  glEnable(GL_DEPTH_TEST);
+
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  m_prog_flat.setModelMatrix(
-      glm::scale(glm::rotate(glm::radians(90.f), glm::vec3(1, 0, 0)),
-                 glm::vec3(10, 10, 0)));
   m_prog_flat.draw(m_square);
-
-  m_prog_flat.setModelMatrix(
-      glm::translate(glm::mat4(1.0f), glm::vec3(0, 1.f, 0)));
-  m_prog_flat.draw(m_cube);
 }
 
 void Editor::processEvent(const SDL_Event &event) {

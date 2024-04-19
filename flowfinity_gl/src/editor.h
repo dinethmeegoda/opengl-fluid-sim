@@ -1,5 +1,4 @@
 #include "engine/camera.h"
-#include "engine/scene/cube.h"
 #include "engine/scene/square.h"
 #include "engine/shaderprogram.h"
 
@@ -24,9 +23,7 @@ private:
   GLuint vao;
 
   ShaderProgram m_prog_flat;
-  ShaderProgram m_prog_lambert;
   Square m_square;
-  Cube m_cube;
 
   Camera m_camera;
 };
