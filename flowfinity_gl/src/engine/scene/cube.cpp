@@ -66,8 +66,8 @@ void Cube::create() {
   glBufferData(GL_ARRAY_BUFFER, col.size() * sizeof(glm::vec4), col.data(),
                GL_STATIC_DRAW);
 
-  m_attributes.nor.generate();
-  m_attributes.nor.bind();
-  glBufferData(GL_ARRAY_BUFFER, nor.size() * sizeof(glm::vec4), nor.data(),
-               GL_STATIC_DRAW);
+  // m_attributes.nor.generate();
+  // m_attributes.nor.bind();
+  // glBufferData(GL_ARRAY_BUFFER, nor.size() * sizeof(glm::vec4), nor.data(),
+  //              GL_STATIC_DRAW);
 }

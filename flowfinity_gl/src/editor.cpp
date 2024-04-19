@@ -9,7 +9,8 @@
 
 #include <iostream>
 
-Editor::Editor() : m_square(), m_prog_flat(), m_camera() {}
+Editor::Editor()
+    : m_square(), m_square2(), m_circle(), m_prog_flat(), m_camera() {}
 
 Editor::~Editor() {
   glDeleteVertexArrays(1, &vao);
@@ -47,6 +48,7 @@ int Editor::initialize(SDL_Window *window, SDL_GLContext gl_context) {
   glGenVertexArrays(1, &vao);
 
   m_square.create();
+  m_square2.create();
   m_prog_flat.create("passthrough.vert.glsl", "flat.frag.glsl");
 
   // We have to have a VAO bound in OpenGL 3.2 Core. But if we're not
@@ -66,6 +68,13 @@ void Editor::paint() {
   glViewport(0, 0, m_width, m_height);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  // m_prog_flat.setModelMatrix(glm::scale(
+  //     glm::rotate(glm::mat4(1.f), glm::radians(90.f), glm::vec3(1, 0, 0)),
+  //     glm::vec3(10, 10, 0)));
+
+  m_prog_flat.setModelMatrix(
+      glm::scale(glm::mat4(1.f), glm::vec3(7.5, 4.25, 0)));
 
   m_prog_flat.draw(m_square);
 }

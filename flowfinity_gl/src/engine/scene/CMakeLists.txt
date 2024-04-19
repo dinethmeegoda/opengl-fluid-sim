@@ -3,4 +3,6 @@ target_sources(flowfinityGl PRIVATE
   square.h
   cube.cpp
   cube.h
+  circle.cpp
+  circle.h
 )

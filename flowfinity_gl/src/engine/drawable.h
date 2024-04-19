@@ -34,7 +34,7 @@ class Drawable {
     AttributeRef idx;
     AttributeRef pos;
     AttributeRef col;
-    AttributeRef nor;
+    // AttributeRef nor;
 
   public:
     Attributes();

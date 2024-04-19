@@ -1,4 +1,5 @@
 #include "engine/camera.h"
+#include "engine/scene/circle.h"
 #include "engine/scene/square.h"
 #include "engine/shaderprogram.h"
 
@@ -24,6 +25,8 @@ private:
 
   ShaderProgram m_prog_flat;
   Square m_square;
+  Square m_square2;
+  Circle m_circle;
 
   Camera m_camera;
 };
