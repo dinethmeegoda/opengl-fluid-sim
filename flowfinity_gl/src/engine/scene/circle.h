@@ -11,6 +11,9 @@ public:
   ~Circle();
 
   void create() override;
+  void setRadius(float r);
+  void setSides(float s);
+  void setColor(glm::vec3 c);
 
 private:
   float radius;

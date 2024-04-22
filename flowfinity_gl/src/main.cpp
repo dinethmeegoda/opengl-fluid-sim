@@ -190,40 +190,76 @@ int main(int, char **) {
     // 2. Show a simple window that we create ourselves. We use a Begin/End pair
     // to create a named window.
     {
-      static float f = 0.0f;
-      static int counter = 0;
+      static int instances = 10;
+      static float size = 0.25f;
+      static float damping = 0.5f;
+      static float spacing = 0.0f;
+      static float density = 1.0f;
+      static float bounds[2]{7.5f, 4.0f};
 
-      ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!"
-                                     // and append into it.
+      ImGui::Begin("Particle Fluid Sim!"); // Create a window called "Hello,
+                                           // world!" and append into it.
 
-      ImGui::Text("This is some useful text."); // Display some text (you can
-                                                // use a format strings too)
-      ImGui::Checkbox(
-          "Demo Window",
-          &show_demo_window); // Edit bools storing our window open/close state
-      ImGui::Checkbox("Another Window", &show_another_window);
+      ImGui::Text(
+          "Edit Simulation Parameters, then Start."); // Display some text (you
+                                                      // can use a format
+                                                      // strings too)
 
-      ImGui::SliderFloat("float", &f, 0.0f,
+      ImGui::SliderInt("Number of Particles", &instances, 1, 1000);
+
+      ImGui::SliderFloat("Particle Radius", &size, 0.05f,
                          1.0f); // Edit 1 float using a slider from 0.0f to 1.0f
-      ImGui::ColorEdit3(
-          "clear color",
-          (float *)&clear_color); // Edit 3 floats representing a color
 
-      if (ImGui::Button("Button")) // Buttons return true when clicked (most
-                                   // widgets return true when edited/activated)
-        counter++;
+      ImGui::SliderFloat("Particle Damping", &damping, -1.0f, 1.0f);
+
+      ImGui::SliderFloat("Particle Spacing", &spacing, 0.0f, 1.0f);
+
+      ImGui::SliderFloat("Density Radius", &density, 0.0f, 10.0f);
       ImGui::SameLine();
-      ImGui::Text("counter = %d", counter);
+      ImGui::Text("Density: % f", editor.getDensity());
+
+      ImGui::SliderFloat2("Bounds", bounds, 0.0f, 10.0f);
+
+      // ImGui::ColorEdit3(
+      //     "clear color",
+      //     (float *)&clear_color); // Edit 3 floats representing a color
+
+      if (ImGui::Button(
+              editor.getStarted()
+                  ? "Reset Simulation"
+                  : "Start Simulation")) // Buttons return true when clicked
+                                         // (most widgets return true when
+                                         // edited/activated)
+      {
+        if (!editor.getStarted()) {
+          editor.startSimulation();
+        } else {
+          editor.resetSimulation();
+        }
+      }
 
       ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
                   1000.0f / io.Framerate, io.Framerate);
       ImGui::End();
+
+      // Set Variables
+      if (!editor.getStarted()) {
+        editor.setNumInstances(instances);
+        editor.setParticleSpacing(spacing);
+        editor.setDensityRadius(density);
+      }
+      editor.setParticleSize(size);
+      editor.setParticleDamping(damping);
+      editor.setBounds(glm::vec2(bounds[0], bounds[1]));
     }
 
     // Rendering
     ImGui::Render();
     glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
 
+    if (!editor.getStarted()) {
+      editor.resetSimulation();
+    }
     editor.paint();
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

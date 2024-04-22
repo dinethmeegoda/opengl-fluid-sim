@@ -1,16 +1,26 @@
 #include "editor.h"
+#include "engine/drawable.h"
+#include "flowfinity.h"
 
 #include <SDL.h>
 #include <SDL_events.h>
 #include <SDL_keycode.h>
 #include <SDL_mouse.h>
 #include <SDL_video.h>
+#include <chrono>
+#include <glm/ext/vector_int3_sized.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <iostream>
 
 Editor::Editor()
-    : m_square(), m_square2(), m_circle(), m_prog_flat(), m_camera() {}
+    : m_square(), m_square2(), m_circle(),
+      m_densityCircle(1, 25, glm::vec3(255, 0, 0)), m_bounds(glm::vec2(7.5, 4)),
+      m_prog_flat(), m_camera(), m_elapsed_time(0),
+      m_lastTime(std::chrono::high_resolution_clock::now()), m_offsets(),
+      m_velocities(), m_numInstances(10), m_particleSize(1),
+      m_particleDamping(-0.1), m_particleSpacing(0), m_started(false),
+      m_densityRadius(1) {}
 
 Editor::~Editor() {
   glDeleteVertexArrays(1, &vao);
@@ -22,6 +32,7 @@ int Editor::initialize(SDL_Window *window, SDL_GLContext gl_context) {
 
   SDL_GL_GetDrawableSize(window, &m_width, &m_height);
   m_camera = Camera(m_width, m_height);
+  m_camera.TranslateAlongUp(-1);
 
   GLenum err = glewInit();
   if (err != GLEW_OK) {
@@ -47,20 +58,138 @@ int Editor::initialize(SDL_Window *window, SDL_GLContext gl_context) {
   // Create a Vertex Attribute Object
   glGenVertexArrays(1, &vao);
 
-  m_square.create();
-  m_square2.create();
-  m_prog_flat.create("passthrough.vert.glsl", "flat.frag.glsl");
+  // m_square.create();
+  // m_square2.create();
+  m_circle.create();
+  // m_densityCircle.create();
+  // m_prog_flat.create("passthrough.vert.glsl", "flat.frag.glsl");
+  m_prog_instanced.create("instanced.vert.glsl", "instanced.frag.glsl");
+  initInstances();
 
   // We have to have a VAO bound in OpenGL 3.2 Core. But if we're not
   // using multiple VAOs, we can just bind one once.
   glBindVertexArray(vao);
 
+  m_lastTime = std::chrono::high_resolution_clock::now();
+
   return 0;
 }
 
+// Getters and Setters
+void Editor::startSimulation() { m_started = true; }
+
+void Editor::resetSimulation() {
+  m_elapsed_time = 0;
+  m_offsets.clear();
+  m_velocities.clear();
+  m_started = false;
+  initInstances();
+}
+
+void Editor::setNumInstances(int numInstances) {
+  m_numInstances = numInstances;
+}
+
+void Editor::setParticleSize(float particleSize) {
+  if (particleSize == m_particleSize) {
+    return;
+  } else {
+    m_circle.setRadius(particleSize);
+    m_circle.create();
+    m_particleSize = particleSize;
+  }
+}
+
+void Editor::setParticleDamping(float particleDamping) {
+  m_particleDamping = particleDamping;
+}
+
+void Editor::setParticleSpacing(float particleSpacing) {
+  m_particleSpacing = particleSpacing;
+}
+
+void Editor::setDensityRadius(float densityRadius) {
+  m_densityCircle.setRadius(densityRadius);
+  m_densityCircle.create();
+  m_densityRadius = densityRadius;
+}
+
+void Editor::setBounds(glm::vec2 bounds) { m_bounds = bounds; }
+
+bool Editor::getStarted() { return m_started; }
+
+float Editor::getDensity() {
+  return FlowFinity::calculateDensity(glm::vec3(0), m_offsets, m_densityRadius);
+}
+
+void Editor::initInstances() {
+
+  // Place particles in a grid formation
+  int particlesPerRow = (int)sqrt(m_numInstances);
+  int particlesPerCol = (m_numInstances - 1) / particlesPerRow + 1;
+  float spacing = m_particleSpacing + m_particleSize * 2;
+
+  for (int i = 0; i < m_numInstances; i++) {
+    m_velocities.push_back(glm::vec3(0, 0, 0));
+    m_offsets.push_back(glm::vec3(
+        (i % particlesPerRow) * spacing - (particlesPerRow - 1) * spacing / 2.f,
+        (i / particlesPerRow) * spacing - (particlesPerCol - 1) * spacing / 2.f,
+        0));
+  }
+  m_lastTime = std::chrono::high_resolution_clock::now();
+}
+
+void Editor::resolveCollisions() {
+  glm::vec2 bounds = m_bounds - glm::vec2(m_particleSize / 2.f);
+  for (int i = 0; i < m_numInstances; i++) {
+    if (m_offsets[i].x < -bounds.x) {
+      m_offsets[i].x = -bounds.x;
+      m_velocities[i].x *= -(1 - m_particleDamping);
+    } else if (m_offsets[i].x > bounds.x) {
+      m_offsets[i].x = bounds.x;
+      m_velocities[i].x *= -(1 - m_particleDamping);
+    }
+    if (m_offsets[i].y < -bounds.y) {
+      m_offsets[i].y = -bounds.y;
+      m_velocities[i].y *= -(1 - m_particleDamping);
+    } else if (m_offsets[i].y > bounds.y) {
+      m_offsets[i].y = bounds.y;
+      m_velocities[i].y *= -(1 - m_particleDamping);
+    }
+  }
+}
+
+void Editor::calculateOffsets(int num, float dt) {
+  for (int i = 0; i < num; i++) {
+    m_velocities[i] += glm::vec3(0, -9.8, 0) * dt;
+    m_offsets[i] += m_velocities[i] * dt;
+    resolveCollisions();
+  }
+}
+
 void Editor::paint() {
-  m_prog_flat.setModelMatrix(glm::mat4(1.f));
-  m_prog_flat.setViewProjMatrix(m_camera.getViewProj());
+  // m_prog_flat.setModelMatrix(
+  //     glm::translate(glm::mat4(1.f), glm::vec3(0, 0, -1)));
+  // m_prog_flat.setViewProjMatrix(m_camera.getViewProj());
+
+  // Set Camera Position and Matrices
+  m_prog_instanced.setModelMatrix(glm::mat4(1.f));
+  m_prog_instanced.setViewProjMatrix(m_camera.getViewProj());
+
+  if (m_started) {
+    // Calculate Time
+    int deltaTime = (std::chrono::high_resolution_clock::now() - m_lastTime) /
+                    std::chrono::milliseconds(1);
+    m_elapsed_time += deltaTime;
+    m_lastTime = std::chrono::high_resolution_clock::now();
+    // Set Instanced Rendering Variables and Velocites
+    calculateOffsets(m_numInstances, deltaTime / 1000.f);
+    m_prog_instanced.setTime(m_elapsed_time);
+    m_prog_instanced.setDeltaTime(deltaTime / 1000.f);
+  }
+
+  m_prog_instanced.setOffsets(m_offsets, m_numInstances);
+  m_prog_instanced.setNumInstances(m_numInstances);
 
   SDL_GL_GetDrawableSize(mp_window, &m_width, &m_height);
   m_camera.width = m_width;
@@ -73,10 +202,12 @@ void Editor::paint() {
   //     glm::rotate(glm::mat4(1.f), glm::radians(90.f), glm::vec3(1, 0, 0)),
   //     glm::vec3(10, 10, 0)));
 
-  m_prog_flat.setModelMatrix(
-      glm::scale(glm::mat4(1.f), glm::vec3(7.5, 4.25, 0)));
+  // m_prog_flat.setModelMatrix(
+  //     glm::scale(glm::mat4(1.f), glm::vec3(7.5, 4.25, 0)));
 
-  m_prog_flat.draw(m_square);
+  // m_prog_flat.draw(m_square);
+  // m_prog_flat.draw(m_densityCircle);
+  m_prog_instanced.drawInstanced(m_circle, m_numInstances);
 }
 
 void Editor::processEvent(const SDL_Event &event) {

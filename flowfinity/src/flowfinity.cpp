@@ -1,26 +1,31 @@
 #include "flowfinity.h"
 
-#include <iterator>
+#include <cmath>
+#include <glm/ext/scalar_constants.hpp>
+#include <glm/geometric.hpp>
 
-FlowFinity::FlowFinity() : m_pos(), m_vel() {}
+FlowFinity::FlowFinity() {}
 
 FlowFinity::~FlowFinity() {}
 
-void FlowFinity::performTimeStep(float dt) {
-  // TODO
+#define M_PI 3.14159265358979323846 /* pi */
+
+float FlowFinity::SmoothingKernel(float r, float dst) {
+  float volume = M_PI * std::pow(r, 8) / 4;
+  float value = fmax(0, r * r - dst * dst);
+  return value * value * value / volume;
 }
 
-void FlowFinity::addAgent(float x, float y) {
-  m_pos.push_back(glm::vec2(x, y));
-  m_vel.push_back(glm::vec2(0, 0));
-}
+float FlowFinity::calculateDensity(glm::vec3 pos,
+                                   const std::vector<glm::vec3> &positions,
+                                   float smoothingRadius) {
+  float density = 0;
+  const float mass = 1;
 
-void FlowFinity::addAgent(const glm::vec2 &pos) { addAgent(pos.x, pos.y); }
-
-void FlowFinity::removeAgent(size_t index) {
-  if (index >= m_pos.size()) {
-    throw "index out of bounds lol";
+  for (auto &p : positions) {
+    float dst = glm::distance(pos, p);
+    float influence = SmoothingKernel(smoothingRadius, dst);
+    density += mass * influence;
   }
-  m_pos.erase(std::next(m_pos.begin(), index));
-  m_vel.erase(std::next(m_vel.begin(), index));
+  return density;
 }

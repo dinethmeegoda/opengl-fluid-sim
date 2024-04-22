@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 
 #include <vector>
 
@@ -14,11 +14,10 @@ public:
 
   void performTimeStep(float dt);
 
-private:
-  std::vector<glm::vec2> m_pos;
-  std::vector<glm::vec2> m_vel;
+  static float SmoothingKernel(float r, float dst);
+  static float calculateDensity(glm::vec3 pos,
+                                const std::vector<glm::vec3> &positions,
+                                float smoothingRadius);
 
-  void addAgent(float x, float y);
-  void addAgent(const glm::vec2 &pos);
-  void removeAgent(size_t index);
+private:
 };

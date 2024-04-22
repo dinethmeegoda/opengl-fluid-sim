@@ -1,4 +1,5 @@
 #include "shaderprogram.h"
+#include <glm/gtc/type_ptr.hpp>
 
 #include "glutil.h"
 
@@ -12,7 +13,9 @@ namespace fs = std::filesystem;
 ShaderProgram::Handles::Handles()
     : attr_pos(-1), attr_col(-1),
       // attr_nor(-1),
-      unif_model(-1), unif_modelInvTr(-1), unif_viewProj(-1), unif_camPos(-1) {}
+      unif_model(-1), unif_modelInvTr(-1), unif_viewProj(-1), unif_camPos(-1),
+      unif_offsets(-1), unif_numInstances(-1), unif_deltaTime(-1),
+      unif_time(-1) {}
 
 ShaderProgram::ShaderProgram()
     : m_vertShader(0), m_fragShader(0), m_prog(0), m_handles() {}
@@ -54,6 +57,10 @@ void ShaderProgram::create(const char *vertFile, const char *fragFile) {
   m_handles.unif_modelInvTr = glGetUniformLocation(m_prog, "u_ModelInvTr");
   m_handles.unif_viewProj = glGetUniformLocation(m_prog, "u_ViewProj");
   m_handles.unif_camPos = glGetUniformLocation(m_prog, "u_CamPos");
+  m_handles.unif_offsets = glGetUniformLocation(m_prog, "u_Offsets");
+  m_handles.unif_numInstances = glGetUniformLocation(m_prog, "u_NumInstances");
+  m_handles.unif_time = glGetUniformLocation(m_prog, "u_Time");
+  m_handles.unif_deltaTime = glGetUniformLocation(m_prog, "u_DeltaTime");
 }
 
 void ShaderProgram::useMe() { glUseProgram(m_prog); }
@@ -74,6 +81,29 @@ void ShaderProgram::draw(Drawable &drawable) {
   // This invokes the shader program, which accesses the vertex buffers.
   drawable.m_attributes.idx.bind();
   glDrawElements(drawable.drawMode(), drawable.elemCount(), GL_UNSIGNED_INT, 0);
+
+  unbindDrawable();
+
+  GLUtil::printGLErrorLog();
+}
+
+void ShaderProgram::drawInstanced(Drawable &drawable, int numInstances) {
+  GLUtil::printGLErrorLog();
+  if (drawable.elemCount() < 0) {
+    throw std::invalid_argument(
+        "Attempting to draw a Drawable that has not initialized its count "
+        "variable! Remember to set it to the length of your index array in "
+        "create().");
+  }
+  useMe();
+
+  bindDrawable(drawable);
+
+  // Bind the index buffer and then draw shapes from it.
+  // This invokes the shader program, which accesses the vertex buffers.
+  drawable.m_attributes.idx.bind();
+  glDrawElementsInstanced(drawable.drawMode(), drawable.elemCount(),
+                          GL_UNSIGNED_INT, 0, numInstances);
 
   unbindDrawable();
 
@@ -103,6 +133,38 @@ void ShaderProgram::setCamPos(const glm::vec3 &cp) {
   useMe();
   if (m_handles.unif_camPos != -1) {
     glUniform3fv(m_handles.unif_camPos, 1, &cp[0]);
+  }
+}
+
+void ShaderProgram::setOffsets(const std::vector<glm::vec3> &offsets,
+                               int numInstances) {
+  useMe();
+  for (int i = 0; i < numInstances; i++) {
+    if (m_handles.unif_offsets != -1) {
+      glUniform3fv(m_handles.unif_offsets, numInstances,
+                   glm::value_ptr(offsets[0]));
+    }
+  }
+}
+
+void ShaderProgram::setNumInstances(int numInstances) {
+  useMe();
+  if (m_handles.unif_numInstances != -1) {
+    glUniform1i(m_handles.unif_numInstances, numInstances);
+  }
+}
+
+void ShaderProgram::setTime(int time) {
+  useMe();
+  if (m_handles.unif_time != -1) {
+    glUniform1i(m_handles.unif_time, time);
+  }
+}
+
+void ShaderProgram::setDeltaTime(float deltaTime) {
+  useMe();
+  if (m_handles.unif_deltaTime != -1) {
+    glUniform1f(m_handles.unif_deltaTime, deltaTime);
   }
 }
 
