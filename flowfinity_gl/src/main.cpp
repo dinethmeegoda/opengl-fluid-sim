@@ -190,11 +190,13 @@ int main(int, char **) {
     // 2. Show a simple window that we create ourselves. We use a Begin/End pair
     // to create a named window.
     {
-      static int instances = 10;
-      static float size = 0.25f;
+      static int instances = 400;
+      static float size = 0.05f;
       static float damping = 0.5f;
-      static float spacing = 0.0f;
-      static float density = 1.0f;
+      static float spacing = 0.1f;
+      static float density = 2.0f;
+      static float targetDensity = 2.75f;
+      static float pressureMultiplier = 10.f;
       static float bounds[2]{7.5f, 4.0f};
 
       ImGui::Begin("Particle Fluid Sim!"); // Create a window called "Hello,
@@ -217,6 +219,11 @@ int main(int, char **) {
       ImGui::SliderFloat("Density Radius", &density, 0.0f, 10.0f);
       ImGui::SameLine();
       ImGui::Text("Density: % f", editor.getDensity());
+
+      ImGui::SliderFloat("Target Density", &targetDensity, 0.0f, 10.0f);
+
+      ImGui::SliderFloat("Pressure Multiplier", &pressureMultiplier, 0.0f,
+                         500.0f);
 
       ImGui::SliderFloat2("Bounds", bounds, 0.0f, 10.0f);
 
@@ -250,6 +257,8 @@ int main(int, char **) {
       }
       editor.setParticleSize(size);
       editor.setParticleDamping(damping);
+      editor.setTargetDensity(targetDensity);
+      editor.setPressureMultiplier(pressureMultiplier);
       editor.setBounds(glm::vec2(bounds[0], bounds[1]));
     }
 

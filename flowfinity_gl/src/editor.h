@@ -26,6 +26,8 @@ public:
   void setParticleDamping(float particleDamping);
   void setParticleSpacing(float particleSpacing);
   void setDensityRadius(float densityRadius);
+  void setTargetDensity(float targetDensity);
+  void setPressureMultiplier(float pressureMultiplier);
   void setBounds(glm::vec2 bounds);
 
   bool getStarted();
@@ -56,6 +58,7 @@ private:
   // Velocites and Positions
   std::vector<glm::vec3> m_offsets;
   std::vector<glm::vec3> m_velocities;
+  std::vector<float> m_densities;
   void resolveCollisions();
 
   // Number of instances
@@ -70,5 +73,9 @@ private:
   bool m_started;
   // Density Radius
   float m_densityRadius;
+  // Target Density
+  float m_targetDensity;
+  // Pressure Multiplier
+  float m_pressureMultiplier;
 };
 ;

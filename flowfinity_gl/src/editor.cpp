@@ -8,6 +8,7 @@
 #include <SDL_mouse.h>
 #include <SDL_video.h>
 #include <chrono>
+#include <glm/ext/vector_float3.hpp>
 #include <glm/ext/vector_int3_sized.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -18,9 +19,9 @@ Editor::Editor()
       m_densityCircle(1, 25, glm::vec3(255, 0, 0)), m_bounds(glm::vec2(7.5, 4)),
       m_prog_flat(), m_camera(), m_elapsed_time(0),
       m_lastTime(std::chrono::high_resolution_clock::now()), m_offsets(),
-      m_velocities(), m_numInstances(10), m_particleSize(1),
+      m_velocities(), m_densities(), m_numInstances(10), m_particleSize(1),
       m_particleDamping(-0.1), m_particleSpacing(0), m_started(false),
-      m_densityRadius(1) {}
+      m_densityRadius(1), m_targetDensity(2.75), m_pressureMultiplier(10) {}
 
 Editor::~Editor() {
   glDeleteVertexArrays(1, &vao);
@@ -62,8 +63,8 @@ int Editor::initialize(SDL_Window *window, SDL_GLContext gl_context) {
   // m_square2.create();
   m_circle.create();
   // m_densityCircle.create();
-  // m_prog_flat.create("passthrough.vert.glsl", "flat.frag.glsl");
   m_prog_instanced.create("instanced.vert.glsl", "instanced.frag.glsl");
+  // m_prog_flat.create("passthrough.vert.glsl", "flat.frag.glsl");
   initInstances();
 
   // We have to have a VAO bound in OpenGL 3.2 Core. But if we're not
@@ -110,8 +111,16 @@ void Editor::setParticleSpacing(float particleSpacing) {
 
 void Editor::setDensityRadius(float densityRadius) {
   m_densityCircle.setRadius(densityRadius);
-  m_densityCircle.create();
+  // m_densityCircle.create();
   m_densityRadius = densityRadius;
+}
+
+void Editor::setTargetDensity(float targetDensity) {
+  m_targetDensity = targetDensity;
+}
+
+void Editor::setPressureMultiplier(float pressureMultiplier) {
+  m_pressureMultiplier = pressureMultiplier;
 }
 
 void Editor::setBounds(glm::vec2 bounds) { m_bounds = bounds; }
@@ -130,6 +139,7 @@ void Editor::initInstances() {
   float spacing = m_particleSpacing + m_particleSize * 2;
 
   for (int i = 0; i < m_numInstances; i++) {
+    m_densities.push_back(0);
     m_velocities.push_back(glm::vec3(0, 0, 0));
     m_offsets.push_back(glm::vec3(
         (i % particlesPerRow) * spacing - (particlesPerRow - 1) * spacing / 2.f,
@@ -160,8 +170,22 @@ void Editor::resolveCollisions() {
 }
 
 void Editor::calculateOffsets(int num, float dt) {
+  // Apply gravity and calculate Densities
   for (int i = 0; i < num; i++) {
-    m_velocities[i] += glm::vec3(0, -9.8, 0) * dt;
+    m_velocities[i] += glm::vec3(0, 0, 0) * dt;
+    m_densities[i] =
+        FlowFinity::calculateDensity(m_offsets[i], m_offsets, m_densityRadius);
+  }
+  // Calculate and apply pressure forces
+  for (int i = 0; i < num; i++) {
+    glm::vec3 pressureForce = FlowFinity::CalulatePressureForce(
+        i, m_offsets, m_densities, m_densityRadius, m_targetDensity,
+        m_pressureMultiplier);
+    glm::vec3 acceleration = pressureForce / m_densities[i];
+    m_velocities[i] += acceleration * dt;
+  }
+  // Update Positions and resolve collisions
+  for (int i = 0; i < num; i++) {
     m_offsets[i] += m_velocities[i] * dt;
     resolveCollisions();
   }

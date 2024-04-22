@@ -18,12 +18,13 @@ ShaderProgram::Handles::Handles()
       unif_time(-1) {}
 
 ShaderProgram::ShaderProgram()
-    : m_vertShader(0), m_fragShader(0), m_prog(0), m_handles() {}
+    : m_vertShader(), m_fragShader(), m_prog(), m_handles() {}
 
 void ShaderProgram::create(const char *vertFile, const char *fragFile) {
   // Load and compile the vertex and fragment shaders
   m_vertShader = glCreateShader(GL_VERTEX_SHADER);
   m_fragShader = glCreateShader(GL_FRAGMENT_SHADER);
+  m_prog = glCreateProgram();
 
   std::string vertSource = textFileRead(vertFile);
   std::string fragSource = textFileRead(fragFile);
@@ -40,7 +41,6 @@ void ShaderProgram::create(const char *vertFile, const char *fragFile) {
   GLUtil::printShaderCompileInfoLog(m_fragShader);
 
   // Link the vertex and fragment shader into a shader program
-  m_prog = glCreateProgram();
   glAttachShader(m_prog, m_vertShader);
   glAttachShader(m_prog, m_fragShader);
   glLinkProgram(m_prog);
