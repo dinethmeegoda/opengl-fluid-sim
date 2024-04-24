@@ -21,7 +21,7 @@ Editor::Editor()
       m_lastTime(std::chrono::high_resolution_clock::now()), m_offsets(),
       m_velocities(), m_densities(), m_numInstances(10), m_particleSize(1),
       m_particleDamping(-0.1), m_particleSpacing(0), m_started(false),
-      m_densityRadius(1), m_targetDensity(2.75), m_pressureMultiplier(10) {}
+      m_densityRadius(1), m_targetDensity(2.75), m_pressureMultiplier(10), m_gravity(0), m_randomLocation(false), m_randomLocationGenerated(false) {}
 
 Editor::~Editor() {
   glDeleteVertexArrays(1, &vao);
@@ -81,8 +81,12 @@ void Editor::startSimulation() { m_started = true; }
 
 void Editor::resetSimulation() {
   m_elapsed_time = 0;
-  m_offsets.clear();
+  // if the random locations are on, and they have been generated, don't reset the offsets
+  if (!m_randomLocation || !m_randomLocationGenerated) {
+	m_offsets.clear();
+  }
   m_velocities.clear();
+  m_densities.clear();
   m_started = false;
   initInstances();
 }
@@ -123,7 +127,19 @@ void Editor::setPressureMultiplier(float pressureMultiplier) {
   m_pressureMultiplier = pressureMultiplier;
 }
 
+void Editor::setGravity(float gravity) {
+  m_gravity = gravity;
+}
+
 void Editor::setBounds(glm::vec2 bounds) { m_bounds = bounds; }
+
+void Editor::setRandomLocation(bool randomLocation) {
+  m_randomLocation = randomLocation;
+}
+
+void Editor::setRandomLocationGenerated(bool randomLocationGenerated) {
+  m_randomLocationGenerated = randomLocationGenerated;
+}
 
 bool Editor::getStarted() { return m_started; }
 
@@ -139,12 +155,26 @@ void Editor::initInstances() {
   float spacing = m_particleSpacing + m_particleSize * 2;
 
   for (int i = 0; i < m_numInstances; i++) {
-    m_densities.push_back(0);
-    m_velocities.push_back(glm::vec3(0, 0, 0));
-    m_offsets.push_back(glm::vec3(
-        (i % particlesPerRow) * spacing - (particlesPerRow - 1) * spacing / 2.f,
-        (i / particlesPerRow) * spacing - (particlesPerCol - 1) * spacing / 2.f,
-        0));
+      m_densities.push_back(0);
+      m_velocities.push_back(glm::vec3(0, 0, 0));
+      if (!m_randomLocation) {
+          m_offsets.push_back(glm::vec3(
+              (i % particlesPerRow) * spacing - (particlesPerRow - 1) * spacing / 2.f,
+              (i / particlesPerRow) * spacing - (particlesPerCol - 1) * spacing / 2.f,
+              0));
+      }
+      // If the random Locations havent already been generated
+      else if (!m_randomLocationGenerated){
+          // Push back a random position within the bounds -x to x, -y to y
+          m_offsets.push_back(glm::vec3(
+              (rand() % (int)(m_bounds.x * 2 * 100) - (int)m_bounds.x * 100) / 100.f,
+              (rand() % (int)(m_bounds.y * 2 * 100) - (int)m_bounds.y * 100) / 100.f,
+              0));
+      }
+  }
+  // If the random locations are on but have not been generated, they should be generated now
+  if (m_randomLocation && !m_randomLocationGenerated) {
+	  m_randomLocationGenerated = true;
   }
   m_lastTime = std::chrono::high_resolution_clock::now();
 }
@@ -172,7 +202,7 @@ void Editor::resolveCollisions() {
 void Editor::calculateOffsets(int num, float dt) {
   // Apply gravity and calculate Densities
   for (int i = 0; i < num; i++) {
-    m_velocities[i] += glm::vec3(0, 0, 0) * dt;
+    m_velocities[i] += glm::vec3(0, m_gravity, 0) * dt;
     m_densities[i] =
         FlowFinity::calculateDensity(m_offsets[i], m_offsets, m_densityRadius);
   }

@@ -28,7 +28,10 @@ public:
   void setDensityRadius(float densityRadius);
   void setTargetDensity(float targetDensity);
   void setPressureMultiplier(float pressureMultiplier);
+  void setGravity(float gravity);
   void setBounds(glm::vec2 bounds);
+  void setRandomLocation(bool randomLocation);
+  void setRandomLocationGenerated(bool randomLocationGenerated);
 
   bool getStarted();
   float getDensity();
@@ -77,5 +80,11 @@ private:
   float m_targetDensity;
   // Pressure Multiplier
   float m_pressureMultiplier;
+  // Gravity
+  float m_gravity;
+  // Random Location
+  bool m_randomLocation;
+  // Random Location Generated
+  bool m_randomLocationGenerated;
 };
 ;

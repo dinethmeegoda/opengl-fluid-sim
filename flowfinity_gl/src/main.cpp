@@ -197,6 +197,9 @@ int main(int, char **) {
       static float density = 2.0f;
       static float targetDensity = 2.75f;
       static float pressureMultiplier = 10.f;
+      static float gravity = 0.f;
+      static bool randomLocationGenerated = false;
+      static bool randomLocation = false;
       static float bounds[2]{7.5f, 4.0f};
 
       ImGui::Begin("Particle Fluid Sim!"); // Create a window called "Hello,
@@ -225,7 +228,11 @@ int main(int, char **) {
       ImGui::SliderFloat("Pressure Multiplier", &pressureMultiplier, 0.0f,
                          500.0f);
 
+      ImGui::SliderFloat("Gravity", &gravity, -10.0f, 10.0f);
+
       ImGui::SliderFloat2("Bounds", bounds, 0.0f, 10.0f);
+
+      ImGui::Checkbox("Random Location", &randomLocation);
 
       // ImGui::ColorEdit3(
       //     "clear color",
@@ -254,7 +261,20 @@ int main(int, char **) {
         editor.setNumInstances(instances);
         editor.setParticleSpacing(spacing);
         editor.setDensityRadius(density);
+
+        // If the random location status has changed
+        if (randomLocation != randomLocationGenerated) {
+            // If the random location is being turned off, tell the editor to regenerate
+            if (!randomLocation && randomLocationGenerated) {
+			editor.setRandomLocationGenerated(false);
+		  }
+            // Tell the editor about the new status
+		  editor.setRandomLocation(randomLocation);
+          // Save the previous status
+		  randomLocationGenerated = randomLocation;
+		}
       }
+      // Set these even when started
       editor.setParticleSize(size);
       editor.setParticleDamping(damping);
       editor.setTargetDensity(targetDensity);
