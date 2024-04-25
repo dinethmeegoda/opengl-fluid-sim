@@ -42,9 +42,14 @@ public:
   void setBounds(glm::vec2 bounds);
   void setRandomLocation(bool randomLocation);
   void setRandomLocationGenerated(bool randomLocationGenerated);
+  void setInputRadius(float inputRadius);
+  void setInputStrengthMultiplier(float inputStrengthMultiplier);
 
   bool getStarted();
   float getDensity();
+
+  // Click Strength
+  int m_clickStrength;
 
 private:
   SDL_Window *mp_window;
@@ -58,12 +63,15 @@ private:
   Square m_square;
   Square m_square2;
   Circle m_circle;
-  Circle m_densityCircle;
+  Circle m_inputCircle;
   glm::vec2 m_bounds;
 
   Camera m_camera;
 
   FlowFinity m_flowFinity;
+
+  void checkInterations();
+  glm::vec2 interactionForce(int index, float radius, float strength);
 
   // Elapsed time in milliseconds
   int m_elapsed_time;
@@ -71,7 +79,7 @@ private:
   std::chrono::high_resolution_clock::time_point m_lastTime;
 
   // Velocites and Positions
-  std::vector<glm::vec3> m_offsets;
+  std::vector<glm::vec3> m_positions;
   std::vector<glm::vec3> m_velocities;
   std::vector<glm::vec3> m_predicted_positions;
   std::vector<float> m_densities;
@@ -104,6 +112,14 @@ private:
   bool m_randomLocation;
   // Random Location Generated
   bool m_randomLocationGenerated;
+  // Max Velocity in the current timestep
+  float m_maxVelocity;
+  // Test Click Point
+  glm::vec2 m_testClickPoint;
+  // Input radius
+  float m_inputRadius;
+  // Input strength Multiplier
+  float m_inputStrengthMultiplier;
 
   constexpr static const glm::vec2 cellOffsets[9] = {
       glm::vec2(-1, 1),  glm::vec2(0, 1),  glm::vec2(1, 1),

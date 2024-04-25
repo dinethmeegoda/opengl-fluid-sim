@@ -11,9 +11,12 @@ public:
   ~Circle();
 
   void create() override;
+  void createLines();
   void setRadius(float r);
   void setSides(float s);
   void setColor(glm::vec3 c);
+
+  GLenum drawMode() override { return GL_LINES; }
 
 private:
   float radius;

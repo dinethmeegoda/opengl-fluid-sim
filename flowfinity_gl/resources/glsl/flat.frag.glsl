@@ -7,5 +7,5 @@ out vec4 out_Col;
 
 void main()
 {
-    out_Col = fs_Col;
+    out_Col = vec4(1, 0, 0, 1);
 }

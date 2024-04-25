@@ -25,8 +25,8 @@ class ShaderProgram {
     int unif_viewProj;
     // uniform vec3 => camera position
     int unif_camPos;
-    // uniform vec3[] => instanced rendering positions
-    int unif_offsets;
+    // uniform float => max velocity
+    int unif_maxVelocity;
     // uniform int => number of instances
     int unif_numInstances;
     // uniform int -> time
@@ -44,6 +44,10 @@ public:
   GLuint m_fragShader;
   // The linked shader program stored in this class
   GLuint m_prog;
+  // The Shader Storage Buffer Object (SSBO) for positions
+  GLuint m_ssboPositions;
+  // Second Shader Storage Buffer for velocities
+  GLuint m_ssboVelocities;
 
   ShaderProgram();
   void create(const char *vertFile, const char *fragFile);
@@ -53,7 +57,9 @@ public:
   void draw(Drawable &drawable);
 
   // Draw the given object instanced
-  void drawInstanced(Drawable &drawable, int numInstances);
+  void drawInstanced(Drawable &drawable, int numInstances,
+                     const std::vector<glm::vec3> &offsets,
+                     const std::vector<glm::vec3> &velocities);
 
   // Pass model matrix to this shader on the GPU
   void setModelMatrix(const glm::mat4 &model);
@@ -61,8 +67,8 @@ public:
   void setViewProjMatrix(const glm::mat4 &vp);
   // Pass camera position to this shader on the GPU
   void setCamPos(const glm::vec3 &cp);
-  // Pass offsets array to this shader on the GPU
-  void setOffsets(const std::vector<glm::vec3> &offsets, int numInstances);
+  // Pass velocites array to this shader on the GPU
+  void setMaxVelocity(float maxVelocity);
   // Pass number of instances to this shader on the GPU
   void setNumInstances(int numInstances);
   // Pass time to this shader on the GPU

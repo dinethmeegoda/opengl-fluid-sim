@@ -198,6 +198,8 @@ int main(int, char **) {
       static float targetDensity = 1.2f;
       static float pressureMultiplier = 1.5f;
       static float gravity = 0.f;
+      static float inputRadius = 1.0f;
+      static float inputStrengthMultiplier = 6.0f;
       static bool randomLocationGenerated = false;
       static bool randomLocation = false;
       static float bounds[2]{7.5f, 4.0f};
@@ -212,8 +214,8 @@ int main(int, char **) {
 
       ImGui::SliderInt("Number of Particles", &instances, 1, 4000);
 
-      ImGui::SliderFloat("Particle Radius", &size, 0.05f,
-                         1.0f); // Edit 1 float using a slider from 0.0f to 1.0f
+      ImGui::SliderFloat("Particle Radius", &size, 0.00f,
+                         0.1f); // Edit 1 float using a slider from 0.0f to 1.0f
 
       ImGui::SliderFloat("Particle Damping", &damping, -1.0f, 1.0f);
 
@@ -221,14 +223,19 @@ int main(int, char **) {
 
       ImGui::SliderFloat("Density Radius", &density, 0.0f, 10.0f);
       ImGui::SameLine();
-      ImGui::Text("Density: % f", editor.getDensity());
+      ImGui::Text("Click: % d", editor.m_clickStrength);
 
       ImGui::SliderFloat("Target Density", &targetDensity, 0.0f, 10.0f);
 
       ImGui::SliderFloat("Pressure Multiplier", &pressureMultiplier, 0.0f,
-                         500.0f);
+                         15.0f);
 
       ImGui::SliderFloat("Gravity", &gravity, -10.0f, 10.0f);
+
+      ImGui::SliderFloat("Input Radius", &inputRadius, 0.0f, 5.0f);
+
+      ImGui::SliderFloat("Input Strength Multiplier", &inputStrengthMultiplier,
+                         0.0f, 15.0f);
 
       ImGui::SliderFloat2("Bounds", bounds, 0.0f, 10.0f);
 
@@ -281,6 +288,8 @@ int main(int, char **) {
       editor.setTargetDensity(targetDensity);
       editor.setPressureMultiplier(pressureMultiplier);
       editor.setGravity(gravity);
+      editor.setInputRadius(inputRadius);
+      editor.setInputStrengthMultiplier(inputStrengthMultiplier);
       editor.setBounds(glm::vec2(bounds[0], bounds[1]));
     }
 
