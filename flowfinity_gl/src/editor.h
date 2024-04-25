@@ -25,8 +25,8 @@ public:
 
   void updateSpatialHash(float radius);
   unsigned int getKeyFromHash(unsigned int hash);
-  glm::vec3 forEachPointInRadius(glm::vec3 pos, int posIndex, float radius,
-                                 glm::vec3 (Editor::*func)(int, int, float));
+  void forEachPointInRadius(glm::vec3 pos, std::vector<int> &neighbors,
+                            float radius);
 
   glm::vec3 calcDensityHelper(int pos1, int pos2, float r);
   glm::vec3 calcPressureHelper(int pos1, int pos2, float r);
@@ -73,6 +73,7 @@ private:
   // Velocites and Positions
   std::vector<glm::vec3> m_offsets;
   std::vector<glm::vec3> m_velocities;
+  std::vector<glm::vec3> m_predicted_positions;
   std::vector<float> m_densities;
   void resolveCollisions();
 
@@ -104,7 +105,7 @@ private:
   // Random Location Generated
   bool m_randomLocationGenerated;
 
-  constexpr static const glm::vec2 offsets[9] = {
+  constexpr static const glm::vec2 cellOffsets[9] = {
       glm::vec2(-1, 1),  glm::vec2(0, 1),  glm::vec2(1, 1),
       glm::vec2(-1, 0),  glm::vec2(0, 0),  glm::vec2(1, 0),
       glm::vec2(-1, -1), glm::vec2(0, -1), glm::vec2(1, -1),

@@ -21,10 +21,11 @@ Editor::Editor()
       m_densityCircle(1, 25, glm::vec3(255, 0, 0)), m_bounds(glm::vec2(7.5, 4)),
       m_prog_flat(), m_camera(), m_flowFinity(), m_elapsed_time(0),
       m_lastTime(std::chrono::high_resolution_clock::now()), m_offsets(),
-      m_velocities(), m_densities(), m_numInstances(10), m_particleSize(1),
-      m_particleDamping(-0.1), m_particleSpacing(0), m_started(false),
-      m_densityRadius(1), m_targetDensity(2.75), m_pressureMultiplier(10),
-      m_gravity(0), m_randomLocation(false), m_randomLocationGenerated(false),
+      m_velocities(), m_predicted_positions(), m_densities(),
+      m_numInstances(10), m_particleSize(1), m_particleDamping(-0.1),
+      m_particleSpacing(0), m_started(false), m_densityRadius(1),
+      m_targetDensity(2.75), m_pressureMultiplier(10), m_gravity(0),
+      m_randomLocation(false), m_randomLocationGenerated(false),
       m_spatialHash(), m_startIndices() {}
 
 Editor::~Editor() {
@@ -91,6 +92,7 @@ void Editor::resetSimulation() {
     m_offsets.clear();
   }
   m_velocities.clear();
+  m_predicted_positions.clear();
   m_densities.clear();
   m_spatialHash.clear();
   m_startIndices.clear();
@@ -167,6 +169,7 @@ void Editor::initInstances() {
     m_spatialHash.push_back(std::make_pair(0, 0));
     m_startIndices.push_back(INT_MAX);
     m_velocities.push_back(glm::vec3(0, 0, 0));
+    m_predicted_positions.push_back(glm::vec3(0, 0, 0));
     if (!m_randomLocation) {
       m_offsets.push_back(glm::vec3((i % particlesPerRow) * spacing -
                                         (particlesPerRow - 1) * spacing / 2.f,
@@ -233,16 +236,15 @@ void Editor::updateSpatialHash(float radius) {
   }
 }
 
-glm::vec3
-Editor::forEachPointInRadius(glm::vec3 pos, int posIndex, float radius,
-                             glm::vec3 (Editor::*func)(int, int, float)) {
+void Editor::forEachPointInRadius(glm::vec3 pos, std::vector<int> &neighbors,
+                                  float radius) {
   // Get the cell of the position, the center of the 3x3 grid
   glm::vec2 cell = positionToCell(pos, radius);
   float sqrRadius = radius * radius;
 
   glm::vec3 sum(0);
   // Loop through the 3x3 grid of cells
-  for (glm::vec2 offset : m_offsets) {
+  for (glm::vec2 offset : cellOffsets) {
     // Get key of current cell
     unsigned int key = getKeyFromHash(hashCell(cell + offset));
     int cellStartIndex = m_startIndices[key];
@@ -258,11 +260,10 @@ Editor::forEachPointInRadius(glm::vec3 pos, int posIndex, float radius,
       glm::vec3 point = m_offsets[index];
       float sqrDst = std::pow(glm::distance(pos, point), 2);
       if (sqrDst < sqrRadius) {
-        sum += (this->*func)(posIndex, index, sqrDst);
+        neighbors.push_back(index);
       }
     }
   }
-  return sum;
 }
 
 void Editor::resolveCollisions() {
@@ -285,35 +286,41 @@ void Editor::resolveCollisions() {
   }
 }
 
-glm::vec3 Editor::calcDensityHelper(int pos0, int pos2, float r) {
-  return glm::vec3(m_flowFinity.calculateDensity(pos0, pos2, r), 0, 0);
-}
+// glm::vec3 Editor::calcDensityHelper(int pos0, int pos2, float r) {
+//   return glm::vec3(m_flowFinity.calculateDensity(pos0, pos2, r), 0, 0);
+// }
 
-glm::vec3 Editor::calcPressureHelper(int pos0, int pos2, float r) {
-  return m_flowFinity.CalulatePressureForce(pos0, pos2, r);
-}
+// glm::vec3 Editor::calcPressureHelper(int pos0, int pos2, float r) {
+//   return m_flowFinity.CalulatePressureForce(pos0, pos2, r);
+// }
 
 void Editor::calculateOffsets(int num, float dt) {
   m_flowFinity.setDensities(&m_densities);
-  m_flowFinity.setPositions(&m_offsets);
+  m_flowFinity.setPositions(&m_predicted_positions);
   // Apply gravity and calculate Densities
   for (int i = 0; i < num; i++) {
     m_velocities[i] += glm::vec3(0, m_gravity, 0) * dt;
+    m_predicted_positions[i] = m_offsets[i] + m_velocities[i] * (1 / 120.f);
   }
 
   // Update the spatial hash
   updateSpatialHash(m_densityRadius);
 
   for (int i = 0; i < num; i++) {
-    m_densities[i] = m_flowFinity.calculateDensity(i, 0, m_densityRadius);
+    std::vector<int> neighbors;
+    forEachPointInRadius(m_predicted_positions[i], neighbors, m_densityRadius);
+    m_densities[i] =
+        m_flowFinity.calculateDensity(i, m_densityRadius, neighbors);
     // forEachPointInRadius(m_offsets[i], i, m_densityRadius,
     // &Editor::calcDensityHelper)[0];
   }
 
   // Calculate and apply pressure forces
   for (int i = 0; i < num; i++) {
+    std::vector<int> neighbors;
+    forEachPointInRadius(m_offsets[i], neighbors, m_densityRadius);
     glm::vec3 pressureForce =
-        m_flowFinity.CalulatePressureForce(i, 0, m_densityRadius);
+        m_flowFinity.CalulatePressureForce(i, m_densityRadius, neighbors);
     // forEachPointInRadius(m_offsets[i], i, m_densityRadius,
     // &Editor::calcPressureHelper);
     glm::vec3 acceleration = pressureForce / m_densities[i];
@@ -337,6 +344,7 @@ void Editor::paint() {
 
   if (m_started) {
     // Calculate Time
+
     int deltaTime = (std::chrono::high_resolution_clock::now() - m_lastTime) /
                     std::chrono::milliseconds(1);
     m_elapsed_time += deltaTime;

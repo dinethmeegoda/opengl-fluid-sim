@@ -28,7 +28,20 @@ float FlowFinity::smoothingKernelDerivative(float r, float dst) {
   return scale * (dst - r);
 }
 
-float FlowFinity::calculateDensity(int posIndex, int i, float smoothingRadius) {
+float FlowFinity::calculateDensity(int posIndex, float smoothingRadius,
+                                   std::vector<int> &neighbors) {
+  float density = 0;
+  const float mass = 1;
+
+  for (auto &i : neighbors) {
+    float dst = glm::distance((*m_positions)[posIndex], (*m_positions)[i]);
+    float influence = smoothingKernel(smoothingRadius, dst);
+    density += mass * influence;
+  }
+  return density;
+}
+
+float FlowFinity::calculateDensity(int posIndex, float smoothingRadius) {
   float density = 0;
   const float mass = 1;
 
@@ -46,13 +59,40 @@ glm::vec3 getRandomDir() {
   return glm::vec3(x, y, 0);
 }
 
-glm::vec3 FlowFinity::CalulatePressureForce(int posIndex, int j,
+glm::vec3 FlowFinity::CalulatePressureForce(int posIndex,
                                             float smoothingRadius) {
   // Calculate the pressure force for the specific position
   glm::vec3 pressureForce = glm::vec3(0);
   const float mass = 1;
 
   for (int i = 0; i < m_positions->size(); i++) {
+    if (i == posIndex) {
+      continue;
+    }
+    float dst = glm::distance((*m_positions)[posIndex], (*m_positions)[i]);
+    glm::vec3 dir = dst == 0
+                        ? getRandomDir()
+                        : ((*m_positions)[posIndex] - (*m_positions)[i]) / dst;
+    float slope = smoothingKernelDerivative(smoothingRadius, dst);
+    float density = (*m_densities)[i];
+    float pressureA = m_pressureMultiplier * (density - m_targetDensity);
+    float pressureB =
+        m_pressureMultiplier * ((*m_densities)[posIndex] - m_targetDensity);
+
+    float sharedPressure = pressureA + pressureB / 2.f;
+
+    pressureForce += -sharedPressure * dir * slope * mass / density;
+  }
+  return pressureForce;
+}
+
+glm::vec3 FlowFinity::CalulatePressureForce(int posIndex, float smoothingRadius,
+                                            std::vector<int> &neighbors) {
+  // Calculate the pressure force for the specific position
+  glm::vec3 pressureForce = glm::vec3(0);
+  const float mass = 1;
+
+  for (auto &i : neighbors) {
     if (i == posIndex) {
       continue;
     }

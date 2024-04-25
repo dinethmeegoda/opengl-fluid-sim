@@ -17,8 +17,13 @@ public:
   static float smoothingKernelDerivative(float r, float dst);
 
   // Instance Functions for calculating simulation properties
-  float calculateDensity(int posIndex, int i, float smoothingRadius);
-  glm::vec3 CalulatePressureForce(int posIndex, int i, float smoothingRadius);
+  float calculateDensity(int posIndex, float smoothingRadius,
+                         std::vector<int> &neighbors);
+  float calculateDensity(int posIndex, float smoothingRadius);
+
+  glm::vec3 CalulatePressureForce(int posIndex, float smoothingRadius);
+  glm::vec3 CalulatePressureForce(int posIndex, float smoothingRadius,
+                                  std::vector<int> &neighbors);
 
   // Setters
   void setPositions(std::vector<glm::vec3> *positions);

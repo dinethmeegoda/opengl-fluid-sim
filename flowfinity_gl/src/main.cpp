@@ -190,13 +190,13 @@ int main(int, char **) {
     // 2. Show a simple window that we create ourselves. We use a Begin/End pair
     // to create a named window.
     {
-      static int instances = 400;
+      static int instances = 1000;
       static float size = 0.05f;
-      static float damping = 0.5f;
+      static float damping = 0.96f;
       static float spacing = 0.1f;
-      static float density = 2.0f;
-      static float targetDensity = 2.75f;
-      static float pressureMultiplier = 10.f;
+      static float density = 0.4f;
+      static float targetDensity = 1.2f;
+      static float pressureMultiplier = 1.5f;
       static float gravity = 0.f;
       static bool randomLocationGenerated = false;
       static bool randomLocation = false;
@@ -210,7 +210,7 @@ int main(int, char **) {
                                                       // can use a format
                                                       // strings too)
 
-      ImGui::SliderInt("Number of Particles", &instances, 1, 1000);
+      ImGui::SliderInt("Number of Particles", &instances, 1, 4000);
 
       ImGui::SliderFloat("Particle Radius", &size, 0.05f,
                          1.0f); // Edit 1 float using a slider from 0.0f to 1.0f
