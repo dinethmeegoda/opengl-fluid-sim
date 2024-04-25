@@ -7,7 +7,9 @@
 #include <SDL_keycode.h>
 #include <SDL_mouse.h>
 #include <SDL_video.h>
+#include <algorithm>
 #include <chrono>
+#include <climits>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/ext/vector_int3_sized.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -17,11 +19,13 @@
 Editor::Editor()
     : m_square(), m_square2(), m_circle(),
       m_densityCircle(1, 25, glm::vec3(255, 0, 0)), m_bounds(glm::vec2(7.5, 4)),
-      m_prog_flat(), m_camera(), m_elapsed_time(0),
+      m_prog_flat(), m_camera(), m_flowFinity(), m_elapsed_time(0),
       m_lastTime(std::chrono::high_resolution_clock::now()), m_offsets(),
       m_velocities(), m_densities(), m_numInstances(10), m_particleSize(1),
       m_particleDamping(-0.1), m_particleSpacing(0), m_started(false),
-      m_densityRadius(1), m_targetDensity(2.75), m_pressureMultiplier(10), m_gravity(0), m_randomLocation(false), m_randomLocationGenerated(false) {}
+      m_densityRadius(1), m_targetDensity(2.75), m_pressureMultiplier(10),
+      m_gravity(0), m_randomLocation(false), m_randomLocationGenerated(false),
+      m_spatialHash(), m_startIndices() {}
 
 Editor::~Editor() {
   glDeleteVertexArrays(1, &vao);
@@ -81,12 +85,15 @@ void Editor::startSimulation() { m_started = true; }
 
 void Editor::resetSimulation() {
   m_elapsed_time = 0;
-  // if the random locations are on, and they have been generated, don't reset the offsets
+  // if the random locations are on, and they have been generated, don't reset
+  // the offsets
   if (!m_randomLocation || !m_randomLocationGenerated) {
-	m_offsets.clear();
+    m_offsets.clear();
   }
   m_velocities.clear();
   m_densities.clear();
+  m_spatialHash.clear();
+  m_startIndices.clear();
   m_started = false;
   initInstances();
 }
@@ -121,15 +128,15 @@ void Editor::setDensityRadius(float densityRadius) {
 
 void Editor::setTargetDensity(float targetDensity) {
   m_targetDensity = targetDensity;
+  m_flowFinity.setTargetDensity(targetDensity);
 }
 
 void Editor::setPressureMultiplier(float pressureMultiplier) {
   m_pressureMultiplier = pressureMultiplier;
+  m_flowFinity.setPressureMultiplier(pressureMultiplier);
 }
 
-void Editor::setGravity(float gravity) {
-  m_gravity = gravity;
-}
+void Editor::setGravity(float gravity) { m_gravity = gravity; }
 
 void Editor::setBounds(glm::vec2 bounds) { m_bounds = bounds; }
 
@@ -144,7 +151,8 @@ void Editor::setRandomLocationGenerated(bool randomLocationGenerated) {
 bool Editor::getStarted() { return m_started; }
 
 float Editor::getDensity() {
-  return FlowFinity::calculateDensity(glm::vec3(0), m_offsets, m_densityRadius);
+  // return m_flowFinity.calculateDensity(glm::vec3(0), m_densityRadius);
+  return 0;
 }
 
 void Editor::initInstances() {
@@ -155,28 +163,106 @@ void Editor::initInstances() {
   float spacing = m_particleSpacing + m_particleSize * 2;
 
   for (int i = 0; i < m_numInstances; i++) {
-      m_densities.push_back(0);
-      m_velocities.push_back(glm::vec3(0, 0, 0));
-      if (!m_randomLocation) {
-          m_offsets.push_back(glm::vec3(
-              (i % particlesPerRow) * spacing - (particlesPerRow - 1) * spacing / 2.f,
-              (i / particlesPerRow) * spacing - (particlesPerCol - 1) * spacing / 2.f,
-              0));
-      }
-      // If the random Locations havent already been generated
-      else if (!m_randomLocationGenerated){
-          // Push back a random position within the bounds -x to x, -y to y
-          m_offsets.push_back(glm::vec3(
-              (rand() % (int)(m_bounds.x * 2 * 100) - (int)m_bounds.x * 100) / 100.f,
-              (rand() % (int)(m_bounds.y * 2 * 100) - (int)m_bounds.y * 100) / 100.f,
-              0));
-      }
+    m_densities.push_back(0);
+    m_spatialHash.push_back(std::make_pair(0, 0));
+    m_startIndices.push_back(INT_MAX);
+    m_velocities.push_back(glm::vec3(0, 0, 0));
+    if (!m_randomLocation) {
+      m_offsets.push_back(glm::vec3((i % particlesPerRow) * spacing -
+                                        (particlesPerRow - 1) * spacing / 2.f,
+                                    (i / particlesPerRow) * spacing -
+                                        (particlesPerCol - 1) * spacing / 2.f,
+                                    0));
+    }
+    // If the random Locations havent already been generated
+    else if (!m_randomLocationGenerated) {
+      // Push back a random position within the bounds -x to x, -y to y
+      m_offsets.push_back(glm::vec3(
+          (rand() % (int)(m_bounds.x * 2 * 100) - (int)m_bounds.x * 100) /
+              100.f,
+          (rand() % (int)(m_bounds.y * 2 * 100) - (int)m_bounds.y * 100) /
+              100.f,
+          0));
+    }
   }
-  // If the random locations are on but have not been generated, they should be generated now
+  // If the random locations are on but have not been generated, they should be
+  // generated now
   if (m_randomLocation && !m_randomLocationGenerated) {
-	  m_randomLocationGenerated = true;
+    m_randomLocationGenerated = true;
   }
   m_lastTime = std::chrono::high_resolution_clock::now();
+}
+
+// Hashing Helper Functions
+
+glm::vec2 positionToCell(glm::vec3 pos, float radius) {
+  return glm::vec2((int)(pos.x / radius), (int)(pos.y / radius));
+}
+
+unsigned int hashCell(glm::vec2 cell) {
+  unsigned int a = (unsigned int)cell.x * 15823;
+  unsigned int b = (unsigned int)cell.y * 9737333;
+  return a + b;
+}
+
+unsigned int Editor::getKeyFromHash(unsigned int hash) {
+  // Maybe size? Idk
+  return hash % (unsigned int)m_spatialHash.size();
+}
+
+void Editor::updateSpatialHash(float radius) {
+  for (int i = 0; i < m_offsets.size(); i++) {
+    // Gets Cell Key for each particle and updates for each index
+    glm::vec2 cell = positionToCell(m_offsets[i], radius);
+    unsigned int hash = getKeyFromHash(hashCell(cell));
+    m_spatialHash[i] = std::make_pair(hash, i);
+  }
+
+  // Sort the spatial hash array by the first value in the pair, the cell key
+  std::sort(m_spatialHash.begin(), m_spatialHash.end(),
+            [](auto &left, auto &right) { return left.first < right.first; });
+
+  // Find the start indices for each cell
+  for (int i = 0; i < m_spatialHash.size(); i++) {
+    unsigned int hash = m_spatialHash[i].first;
+    // If the hash is different from the previous hash, update the start index
+    unsigned int hashPrev = i == 0 ? INT_MAX : m_spatialHash[i - 1].first;
+    if (hash != hashPrev) {
+      m_startIndices[hash] = i;
+    }
+  }
+}
+
+glm::vec3
+Editor::forEachPointInRadius(glm::vec3 pos, int posIndex, float radius,
+                             glm::vec3 (Editor::*func)(int, int, float)) {
+  // Get the cell of the position, the center of the 3x3 grid
+  glm::vec2 cell = positionToCell(pos, radius);
+  float sqrRadius = radius * radius;
+
+  glm::vec3 sum(0);
+  // Loop through the 3x3 grid of cells
+  for (glm::vec2 offset : m_offsets) {
+    // Get key of current cell
+    unsigned int key = getKeyFromHash(hashCell(cell + offset));
+    int cellStartIndex = m_startIndices[key];
+
+    // Loop over all points that have the key
+    for (int i = cellStartIndex; i < m_spatialHash.size(); i++) {
+      // Exit if the key is different (not the correct cell)
+      if (m_spatialHash[i].first != key) {
+        break;
+      }
+
+      int index = m_spatialHash[i].second;
+      glm::vec3 point = m_offsets[index];
+      float sqrDst = std::pow(glm::distance(pos, point), 2);
+      if (sqrDst < sqrRadius) {
+        sum += (this->*func)(posIndex, index, sqrDst);
+      }
+    }
+  }
+  return sum;
 }
 
 void Editor::resolveCollisions() {
@@ -199,18 +285,37 @@ void Editor::resolveCollisions() {
   }
 }
 
+glm::vec3 Editor::calcDensityHelper(int pos0, int pos2, float r) {
+  return glm::vec3(m_flowFinity.calculateDensity(pos0, pos2, r), 0, 0);
+}
+
+glm::vec3 Editor::calcPressureHelper(int pos0, int pos2, float r) {
+  return m_flowFinity.CalulatePressureForce(pos0, pos2, r);
+}
+
 void Editor::calculateOffsets(int num, float dt) {
+  m_flowFinity.setDensities(&m_densities);
+  m_flowFinity.setPositions(&m_offsets);
   // Apply gravity and calculate Densities
   for (int i = 0; i < num; i++) {
     m_velocities[i] += glm::vec3(0, m_gravity, 0) * dt;
-    m_densities[i] =
-        FlowFinity::calculateDensity(m_offsets[i], m_offsets, m_densityRadius);
   }
+
+  // Update the spatial hash
+  updateSpatialHash(m_densityRadius);
+
+  for (int i = 0; i < num; i++) {
+    m_densities[i] = m_flowFinity.calculateDensity(i, 0, m_densityRadius);
+    // forEachPointInRadius(m_offsets[i], i, m_densityRadius,
+    // &Editor::calcDensityHelper)[0];
+  }
+
   // Calculate and apply pressure forces
   for (int i = 0; i < num; i++) {
-    glm::vec3 pressureForce = FlowFinity::CalulatePressureForce(
-        i, m_offsets, m_densities, m_densityRadius, m_targetDensity,
-        m_pressureMultiplier);
+    glm::vec3 pressureForce =
+        m_flowFinity.CalulatePressureForce(i, 0, m_densityRadius);
+    // forEachPointInRadius(m_offsets[i], i, m_densityRadius,
+    // &Editor::calcPressureHelper);
     glm::vec3 acceleration = pressureForce / m_densities[i];
     m_velocities[i] += acceleration * dt;
   }

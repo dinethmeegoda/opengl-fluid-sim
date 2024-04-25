@@ -12,19 +12,23 @@ public:
   FlowFinity();
   ~FlowFinity();
 
-  void performTimeStep(float dt);
-
+  // Static Helper Functions
   static float smoothingKernel(float r, float dst);
-  static float calculateDensity(glm::vec3 pos,
-                                const std::vector<glm::vec3> &positions,
-                                float smoothingRadius);
   static float smoothingKernelDerivative(float r, float dst);
 
-  static glm::vec3
-  CalulatePressureForce(int posIndex, const std::vector<glm::vec3> &positions,
-                        const std::vector<float> &densities,
-                        float smoothingRadius, float targetDensity,
-                        float pressureMultiplier);
+  // Instance Functions for calculating simulation properties
+  float calculateDensity(int posIndex, int i, float smoothingRadius);
+  glm::vec3 CalulatePressureForce(int posIndex, int i, float smoothingRadius);
+
+  // Setters
+  void setPositions(std::vector<glm::vec3> *positions);
+  void setDensities(std::vector<float> *densities);
+  void setTargetDensity(float targetDensity);
+  void setPressureMultiplier(float pressureMultiplier);
 
 private:
+  std::vector<glm::vec3> *m_positions;
+  std::vector<float> *m_densities;
+  float m_targetDensity;
+  float m_pressureMultiplier;
 };

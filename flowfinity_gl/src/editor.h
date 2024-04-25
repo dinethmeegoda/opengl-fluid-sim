@@ -2,10 +2,12 @@
 #include "engine/scene/circle.h"
 #include "engine/scene/square.h"
 #include "engine/shaderprogram.h"
+#include "flowfinity.h"
 
 #include <SDL_events.h>
 #include <SDL_video.h>
 #include <chrono>
+#include <functional>
 
 class Editor {
 public:
@@ -20,6 +22,14 @@ public:
   void initInstances();
   void startSimulation();
   void resetSimulation();
+
+  void updateSpatialHash(float radius);
+  unsigned int getKeyFromHash(unsigned int hash);
+  glm::vec3 forEachPointInRadius(glm::vec3 pos, int posIndex, float radius,
+                                 glm::vec3 (Editor::*func)(int, int, float));
+
+  glm::vec3 calcDensityHelper(int pos1, int pos2, float r);
+  glm::vec3 calcPressureHelper(int pos1, int pos2, float r);
 
   void setNumInstances(int numInstances);
   void setParticleSize(float particleSize);
@@ -53,6 +63,8 @@ private:
 
   Camera m_camera;
 
+  FlowFinity m_flowFinity;
+
   // Elapsed time in milliseconds
   int m_elapsed_time;
   // Last time the paint function was called
@@ -63,6 +75,11 @@ private:
   std::vector<glm::vec3> m_velocities;
   std::vector<float> m_densities;
   void resolveCollisions();
+
+  // Particle Location Hashing
+  // Spatial hash stores <cell key, particle index>
+  std::vector<std::pair<int, int>> m_spatialHash;
+  std::vector<int> m_startIndices;
 
   // Number of instances
   int m_numInstances;
@@ -86,5 +103,11 @@ private:
   bool m_randomLocation;
   // Random Location Generated
   bool m_randomLocationGenerated;
+
+  constexpr static const glm::vec2 offsets[9] = {
+      glm::vec2(-1, 1),  glm::vec2(0, 1),  glm::vec2(1, 1),
+      glm::vec2(-1, 0),  glm::vec2(0, 0),  glm::vec2(1, 0),
+      glm::vec2(-1, -1), glm::vec2(0, -1), glm::vec2(1, -1),
+  };
 };
 ;

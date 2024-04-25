@@ -264,21 +264,23 @@ int main(int, char **) {
 
         // If the random location status has changed
         if (randomLocation != randomLocationGenerated) {
-            // If the random location is being turned off, tell the editor to regenerate
-            if (!randomLocation && randomLocationGenerated) {
-			editor.setRandomLocationGenerated(false);
-		  }
-            // Tell the editor about the new status
-		  editor.setRandomLocation(randomLocation);
+          // If the random location is being turned off, tell the editor to
+          // regenerate
+          if (!randomLocation && randomLocationGenerated) {
+            editor.setRandomLocationGenerated(false);
+          }
+          // Tell the editor about the new status
+          editor.setRandomLocation(randomLocation);
           // Save the previous status
-		  randomLocationGenerated = randomLocation;
-		}
+          randomLocationGenerated = randomLocation;
+        }
       }
       // Set these even when started
       editor.setParticleSize(size);
       editor.setParticleDamping(damping);
       editor.setTargetDensity(targetDensity);
       editor.setPressureMultiplier(pressureMultiplier);
+      editor.setGravity(gravity);
       editor.setBounds(glm::vec2(bounds[0], bounds[1]));
     }
 
