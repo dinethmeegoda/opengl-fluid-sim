@@ -33,6 +33,8 @@ class ShaderProgram {
     int unif_time;
     // uniform float -> deltaTime
     int unif_deltaTime;
+    // uniform float array -> 5 colors
+    int unif_colors;
   };
 
 public:
@@ -75,6 +77,8 @@ public:
   void setTime(int time);
   // Pass deltaTime to this shader on the GPU
   void setDeltaTime(float deltaTime);
+  // Pass colors to this shader on the GPU
+  void setColors(const std::vector<glm::vec3> &colors);
 
 private:
   // Utility functions used by draw()

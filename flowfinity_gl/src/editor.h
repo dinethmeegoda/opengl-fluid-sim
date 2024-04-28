@@ -7,7 +7,6 @@
 #include <SDL_events.h>
 #include <SDL_video.h>
 #include <chrono>
-#include <functional>
 
 class Editor {
 public:
@@ -25,8 +24,8 @@ public:
 
   void updateSpatialHash(float radius);
   unsigned int getKeyFromHash(unsigned int hash);
-  void forEachPointInRadius(glm::vec3 pos, std::vector<int> &neighbors,
-                            float radius);
+  glm::vec3 forEachPointInRadius(glm::vec3 pos, float radius, int caseNum,
+                                 int posIndex);
 
   glm::vec3 calcDensityHelper(int pos1, int pos2, float r);
   glm::vec3 calcPressureHelper(int pos1, int pos2, float r);
@@ -44,6 +43,8 @@ public:
   void setRandomLocationGenerated(bool randomLocationGenerated);
   void setInputRadius(float inputRadius);
   void setInputStrengthMultiplier(float inputStrengthMultiplier);
+  void setViscosityStrength(float viscosityStrength);
+  void setColors(std::vector<glm::vec3> colors);
 
   bool getStarted();
   float getDensity();
@@ -120,6 +121,10 @@ private:
   float m_inputRadius;
   // Input strength Multiplier
   float m_inputStrengthMultiplier;
+  // Viscosity Strength
+  float m_viscosityStrength;
+  // Colors array
+  std::vector<glm::vec3> m_colors;
 
   constexpr static const glm::vec2 cellOffsets[9] = {
       glm::vec2(-1, 1),  glm::vec2(0, 1),  glm::vec2(1, 1),

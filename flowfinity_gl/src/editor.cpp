@@ -28,7 +28,8 @@ Editor::Editor()
       m_targetDensity(2.75), m_pressureMultiplier(10), m_gravity(0),
       m_randomLocation(false), m_randomLocationGenerated(false),
       m_spatialHash(), m_startIndices(), m_maxVelocity(0),
-      m_testClickPoint(0, 0), m_clickStrength(0) {}
+      m_testClickPoint(0, 0), m_clickStrength(0), m_viscosityStrength(0),
+      m_colors() {}
 
 Editor::~Editor() {
   glDeleteVertexArrays(1, &vao);
@@ -187,14 +188,15 @@ void Editor::updateSpatialHash(float radius) {
   }
 }
 
-void Editor::forEachPointInRadius(glm::vec3 pos, std::vector<int> &neighbors,
-                                  float radius) {
+glm::vec3 Editor::forEachPointInRadius(glm::vec3 pos, float radius, int caseNum,
+                                       int posIndex = -1) {
   // Get the cell of the position, the center of the 3x3 grid
   glm::vec2 cell = positionToCell(pos, radius);
   float sqrRadius = radius * radius;
 
   glm::vec3 sum(0);
   // Loop through the 3x3 grid of cells
+  glm::vec3 result(0);
   for (glm::vec2 offset : cellOffsets) {
     // Get key of current cell
     unsigned int key = getKeyFromHash(hashCell(cell + offset));
@@ -211,10 +213,51 @@ void Editor::forEachPointInRadius(glm::vec3 pos, std::vector<int> &neighbors,
       glm::vec3 point = m_positions[index];
       float sqrDst = std::pow(glm::distance(pos, point), 2);
       if (sqrDst < sqrRadius) {
-        neighbors.push_back(index);
+        // Function depending on Case Number inputted using index
+        float dst;
+        float influence;
+        switch (caseNum) {
+        case 0:
+          // Calculate Density Sum for the given point and the specific neighbor
+          result += glm::vec3(m_flowFinity.calculateDensity(pos, index, radius),
+                              0, 0);
+          break;
+        case 1:
+          // Calculate Pressure Force Sum for the given point and the specific
+          // neighbor
+          result += m_flowFinity.CalulatePressureForce(posIndex, index, radius);
+          break;
+        case 2:
+          // Calculate Mouse Force for the given point and the specific
+          // neighbor and set it to the velocity
+          m_velocities[index] +=
+              glm::vec3(
+                  interactionForce(index, radius, m_inputStrengthMultiplier),
+                  0) *
+              (1 / 12.f);
+          // Update the max velocity
+          m_maxVelocity =
+              std::max(m_maxVelocity, glm::length(m_velocities[index]));
+          break;
+        case 3:
+          // Calculate Visosity Force for the given point and the specific
+          // neighbor
+          dst = glm::distance(pos, m_predicted_positions[index]);
+          influence = FlowFinity::smoothingKernel(radius, dst);
+          result += (m_velocities[index] - m_velocities[posIndex]) * influence;
+          break;
+        case 4:
+          // Code for case 4
+          break;
+          // TODO
+        default:
+          // Code for default case
+          break;
+        }
       }
     }
   }
+  return result;
 }
 
 // Resolve Collisions with the bounds and obstacles
@@ -266,18 +309,16 @@ void Editor::checkInterations() {
   // If there is a click, apply a force to the particles
   if (m_clickStrength != 0) {
     // Figure out the neighbors of the click point
-    std::vector<int> neighbors;
-    float radius = 2;
-    float strength = 4;
-    updateSpatialHash(radius);
-    forEachPointInRadius(glm::vec3(m_testClickPoint * 2.f, 0), neighbors,
-                         radius);
+    updateSpatialHash(m_inputRadius);
+    glm::vec3 force = forEachPointInRadius(glm::vec3(m_testClickPoint * 2.f, 0),
+                                           m_inputRadius, 2);
     // For each particle in the clickPoint's radius, apply a force
-    for (auto &i : neighbors) {
-      glm::vec2 force = interactionForce(i, radius, strength);
-      m_velocities[i] += glm::vec3(force, 0) * (1 / 12.f);
-      m_maxVelocity = std::max(m_maxVelocity, glm::length(m_velocities[i]));
-    }
+    // for (int i = 0; i < m_numInstances; i++) {
+    //   glm::vec2 force =
+    //       interactionForce(i, m_inputRadius, m_inputStrengthMultiplier);
+    //   m_velocities[i] += glm::vec3(force, 0) * (1 / 12.f);
+    //   m_maxVelocity = std::max(m_maxVelocity, glm::length(m_velocities[i]));
+    // }
   }
 }
 
@@ -299,24 +340,28 @@ void Editor::calculateOffsets(int num, float dt) {
 
   // Update Density Map for efficiency
   for (int i = 0; i < num; i++) {
-    std::vector<int> neighbors;
-    forEachPointInRadius(m_predicted_positions[i], neighbors, m_densityRadius);
     m_densities[i] =
-        m_flowFinity.calculateDensity(i, m_densityRadius, neighbors);
+        forEachPointInRadius(m_predicted_positions[i], m_densityRadius, 0)[0];
   }
 
-  // Calculate and apply forces (Pressure)
+  // Calculate and apply forces (Pressure and Viscosity)
   for (int i = 0; i < num; i++) {
-    std::vector<int> neighbors;
-    forEachPointInRadius(m_positions[i], neighbors, m_densityRadius);
-    glm::vec3 pressureForce =
-        m_flowFinity.CalulatePressureForce(i, m_densityRadius, neighbors);
-    glm::vec3 acceleration = pressureForce / m_densities[i];
+    // Calculate Pressure Force
+    glm::vec3 force =
+        forEachPointInRadius(m_predicted_positions[i], m_densityRadius, 1, i);
+    glm::vec3 acceleration = force / m_densities[i];
 
     // Leapfrog Step 2: Calculate full step velocity
     m_velocities[i] = m_velocities[i] + acceleration * dt +
                       (glm::vec3(0, m_gravity, 0) * 0.5f * dt);
     // Update the max velocity
+    // Calculate Viscosity Force
+    glm::vec3 viscoscity =
+        forEachPointInRadius(m_predicted_positions[i], m_densityRadius, 3, i) *
+        m_viscosityStrength;
+    if (glm::length(viscoscity) != 0.0) {
+      m_velocities[i] += viscoscity * dt;
+    }
     m_maxVelocity = std::max(m_maxVelocity, glm::length(m_velocities[i]));
   }
 
@@ -326,8 +371,8 @@ void Editor::calculateOffsets(int num, float dt) {
   // Update Positions with Euler Integration and resolve collisions
   for (int i = 0; i < num; i++) {
     m_positions[i] += m_velocities[i] * dt;
-    resolveCollisions();
   }
+  resolveCollisions();
 }
 
 // Main OpenGL Rendering Loop
@@ -348,6 +393,7 @@ void Editor::paint() {
     m_prog_instanced.setMaxVelocity(m_maxVelocity);
     m_prog_instanced.setTime(m_elapsed_time);
     m_prog_instanced.setDeltaTime(deltaTime / 1000.f);
+    m_prog_instanced.setColors(m_colors);
   } else if (!m_randomLocation) {
     // Only allow change of number of instances if random locations are off
     m_prog_instanced.setNumInstances(m_numInstances);
@@ -390,7 +436,8 @@ glm::vec2 screenToWorld(int x, int y, int width, int height) {
 void Editor::processEvent(const SDL_Event &event) {
   // Get rid of camera motion for now
   // Update cursor position at all times, even if not clicked
-  // If left clicked, strength is positive, right clicked, strength is negative
+  // If left clicked, strength is positive, right clicked, strength is
+  // negative
   switch (event.type) {
   case SDL_MOUSEBUTTONDOWN:
     m_testClickPoint =
@@ -482,6 +529,13 @@ void Editor::setInputStrengthMultiplier(float inputStrengthMultiplier) {
   m_inputStrengthMultiplier = inputStrengthMultiplier;
 }
 
+void Editor::setViscosityStrength(float viscosityStrength) {
+  m_viscosityStrength = viscosityStrength;
+}
+
+void Editor::setColors(std::vector<glm::vec3> colors) { m_colors = colors; }
+
+// Getters
 bool Editor::getStarted() { return m_started; }
 
 float Editor::getDensity() {

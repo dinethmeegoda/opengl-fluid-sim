@@ -15,7 +15,7 @@ ShaderProgram::Handles::Handles()
       // attr_nor(-1),
       unif_model(-1), unif_modelInvTr(-1), unif_viewProj(-1), unif_camPos(-1),
       unif_maxVelocity(-1), unif_numInstances(-1), unif_deltaTime(-1),
-      unif_time(-1) {}
+      unif_time(-1), unif_colors(-1) {}
 
 ShaderProgram::ShaderProgram()
     : m_vertShader(), m_fragShader(), m_prog(), m_ssboPositions(),
@@ -62,6 +62,7 @@ void ShaderProgram::create(const char *vertFile, const char *fragFile) {
   m_handles.unif_numInstances = glGetUniformLocation(m_prog, "u_NumInstances");
   m_handles.unif_time = glGetUniformLocation(m_prog, "u_Time");
   m_handles.unif_deltaTime = glGetUniformLocation(m_prog, "u_DeltaTime");
+  m_handles.unif_colors = glGetUniformLocation(m_prog, "u_Colors");
 }
 
 void ShaderProgram::useMe() { glUseProgram(m_prog); }
@@ -192,6 +193,13 @@ void ShaderProgram::setDeltaTime(float deltaTime) {
   useMe();
   if (m_handles.unif_deltaTime != -1) {
     glUniform1f(m_handles.unif_deltaTime, deltaTime);
+  }
+}
+
+void ShaderProgram::setColors(const std::vector<glm::vec3> &colors) {
+  useMe();
+  if (m_handles.unif_colors != -1) {
+    glUniform3fv(m_handles.unif_colors, colors.size(), &colors[0][0]);
   }
 }
 

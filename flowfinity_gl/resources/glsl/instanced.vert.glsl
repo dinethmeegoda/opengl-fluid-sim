@@ -9,12 +9,7 @@ uniform int u_NumInstances;
 uniform int u_Time;
 uniform float u_DeltaTime;
 uniform float u_MaxVelocity;
-
-const uniform vec3 color1 = vec3(8.0, 75.0, 220.0)/255.f;
-const uniform vec3 color2 = vec3(66.0, 191.0, 221.0)/255.f;
-const uniform vec3 color3 = vec3(6.0, 214.0, 160.0)/255.f;
-const uniform vec3 color4 = vec3(238.0, 155.0, 0.0)/255.f;
-const uniform vec3 color5 = vec3(174.0, 32.0, 18.0)/255.f;
+uniform vec3[6] u_Colors;
 
 in vec4 vs_Pos;
 in vec4 vs_Col;
@@ -41,22 +36,25 @@ void main() {
   float normalizedSpeed = saturate(speed / u_MaxVelocity);
 
   // Determine mix factor such that we have four equal intervals for five colors
-  float interval = 1.0 / 4.0;
+  float interval = 1.0 / 5.0;
 
   // Mix colors based on the speed
   vec3 mixedColor;
   if (normalizedSpeed < interval) {
       // Mix between color1 and color2
-      mixedColor = mix(color1, color2, normalizedSpeed / interval);
+      mixedColor = mix(u_Colors[0], u_Colors[1], normalizedSpeed / interval);
   } else if (normalizedSpeed < 2.0 * interval) {
       // Mix between color2 and color3
-      mixedColor = mix(color2, color3, (normalizedSpeed - interval) / interval);
+      mixedColor = mix(u_Colors[1], u_Colors[2], normalizedSpeed / (interval * 2.0));
   } else if (normalizedSpeed < 3.0 * interval) {
       // Mix between color3 and color4
-      mixedColor = mix(color3, color4, (normalizedSpeed - 2.0 * interval) / interval);
-  } else {
+      mixedColor = mix(u_Colors[2], u_Colors[3], (normalizedSpeed / (interval * 3.0)));
+  } else if (normalizedSpeed < 4.0 * interval) {
       // Mix between color4 and color5
-      mixedColor = mix(color4, color5, (normalizedSpeed - 3.0 * interval) / interval);
+      mixedColor = mix(u_Colors[3], u_Colors[4], (normalizedSpeed / (interval * 4.0)));
+  } else {
+      // Mix between color5 and color6
+      mixedColor = mix(u_Colors[4], u_Colors[5], (normalizedSpeed / (interval * 5.0)));
   }
 
   // Set the fragment's color

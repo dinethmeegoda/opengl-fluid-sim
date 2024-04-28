@@ -190,57 +190,69 @@ int main(int, char **) {
     // 2. Show a simple window that we create ourselves. We use a Begin/End pair
     // to create a named window.
     {
-      static int instances = 1000;
-      static float size = 0.05f;
+      static int instances = 2000;
+      static float size = 0.04f;
       static float damping = 0.96f;
-      static float spacing = 0.1f;
-      static float density = 0.4f;
+      static float spacing = 0.05f;
+      static float density = 0.26f;
       static float targetDensity = 1.2f;
-      static float pressureMultiplier = 1.5f;
-      static float gravity = 0.f;
+      static float pressureMultiplier = 19.5f;
+      static float gravity = -9.8f;
       static float inputRadius = 1.0f;
       static float inputStrengthMultiplier = 6.0f;
+      static float viscosity = 0.075f;
       static bool randomLocationGenerated = false;
       static bool randomLocation = false;
       static float bounds[2]{7.5f, 4.0f};
+      static int numColors = 6;
+
+      // Colors
+      static float color1[3]{0.03f, 0.29f, 0.86f};
+      static float color2[3]{0.26f, 0.75f, 0.87f};
+      static float color3[3]{0.19f, 0.79f, 0.62f};
+      static float color4[3]{0.6f, 0.98f, 0.49f};
+      static float color5[3]{0.99f, 0.82f, 0.03f};
+      static float color6[3]{0.68f, 0.12f, 0.07f};
 
       ImGui::Begin("Particle Fluid Sim!"); // Create a window called "Hello,
                                            // world!" and append into it.
 
       ImGui::Text(
-          "Edit Simulation Parameters, then Start."); // Display some text (you
-                                                      // can use a format
-                                                      // strings too)
-
-      ImGui::SliderInt("Number of Particles", &instances, 1, 4000);
-
+          editor.getStarted()
+              ? "Edit Simulation Parameters, then Start."
+              : "Edit the Live Parameters, or Reset!"); // Display some text
+                                                        // (you can use a format
+                                                        // strings too)
       ImGui::SliderFloat("Particle Radius", &size, 0.00f,
                          0.1f); // Edit 1 float using a slider from 0.0f to 1.0f
-
-      ImGui::SliderFloat("Particle Damping", &damping, -1.0f, 1.0f);
-
-      ImGui::SliderFloat("Particle Spacing", &spacing, 0.0f, 1.0f);
-
-      ImGui::SliderFloat("Density Radius", &density, 0.0f, 10.0f);
-      ImGui::SameLine();
-      ImGui::Text("Click: % d", editor.m_clickStrength);
-
-      ImGui::SliderFloat("Target Density", &targetDensity, 0.0f, 10.0f);
-
-      ImGui::SliderFloat("Pressure Multiplier", &pressureMultiplier, 0.0f,
-                         15.0f);
-
       ImGui::SliderFloat("Gravity", &gravity, -10.0f, 10.0f);
-
-      ImGui::SliderFloat("Input Radius", &inputRadius, 0.0f, 5.0f);
-
-      ImGui::SliderFloat("Input Strength Multiplier", &inputStrengthMultiplier,
-                         0.0f, 15.0f);
-
-      ImGui::SliderFloat2("Bounds", bounds, 0.0f, 10.0f);
-
-      ImGui::Checkbox("Random Location", &randomLocation);
-
+      if (!editor.getStarted()) {
+        ImGui::SliderInt("Number of Particles", &instances, 1, 4000);
+        ImGui::SliderFloat("Particle Spacing", &spacing, 0.0f, 1.0f);
+        ImGui::Checkbox("Random Location", &randomLocation);
+      } else {
+        ImGui::SliderFloat("Input Radius", &inputRadius, 0.0f, 5.0f);
+        ImGui::SliderFloat("Input Strength Multiplier",
+                           &inputStrengthMultiplier, 0.0f, 25.0f);
+        ImGui::SliderFloat2("Bounds", bounds, 0.0f, 10.0f);
+      }
+      if (ImGui::CollapsingHeader("Colors")) {
+        ImGui::Text("Choose the Velocity Color Gradient!");
+        ImGui::ColorEdit3("Color 1", (float *)&color1);
+        ImGui::ColorEdit3("Color 2", (float *)&color2);
+        ImGui::ColorEdit3("Color 3", (float *)&color3);
+        ImGui::ColorEdit3("Color 4", (float *)&color4);
+        ImGui::ColorEdit3("Color 5", (float *)&color5);
+        ImGui::ColorEdit3("Color 6", (float *)&color6);
+      }
+      if (ImGui::CollapsingHeader("Advanced Settings")) {
+        ImGui::SliderFloat("Density Radius", &density, 0.0f, 2.0f);
+        ImGui::SliderFloat("Target Density", &targetDensity, 0.0f, 10.0f);
+        ImGui::SliderFloat("Particle Damping", &damping, -1.0f, 1.0f);
+        ImGui::SliderFloat("Viscosity", &viscosity, 0.0f, 0.3f);
+        ImGui::SliderFloat("Pressure Multiplier", &pressureMultiplier, 0.0f,
+                           75.0f);
+      }
       // ImGui::ColorEdit3(
       //     "clear color",
       //     (float *)&clear_color); // Edit 3 floats representing a color
@@ -290,7 +302,22 @@ int main(int, char **) {
       editor.setGravity(gravity);
       editor.setInputRadius(inputRadius);
       editor.setInputStrengthMultiplier(inputStrengthMultiplier);
+      editor.setViscosityStrength(viscosity);
       editor.setBounds(glm::vec2(bounds[0], bounds[1]));
+
+      // Set Colors
+      if (editor.getStarted()) {
+        std::vector<glm::vec3> colors;
+
+        colors.push_back(glm::vec3(color1[0], color1[1], color1[2]));
+        colors.push_back(glm::vec3(color2[0], color2[1], color2[2]));
+        colors.push_back(glm::vec3(color3[0], color3[1], color3[2]));
+        colors.push_back(glm::vec3(color4[0], color4[1], color4[2]));
+        colors.push_back(glm::vec3(color5[0], color5[1], color5[2]));
+        colors.push_back(glm::vec3(color6[0], color6[1], color6[2]));
+
+        editor.setColors(colors);
+      }
     }
 
     // Rendering

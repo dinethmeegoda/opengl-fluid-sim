@@ -15,13 +15,16 @@ public:
   // Static Helper Functions
   static float smoothingKernel(float r, float dst);
   static float smoothingKernelDerivative(float r, float dst);
+  static float smoothingViscosityKernel(float r, float dst);
 
   // Instance Functions for calculating simulation properties
   float calculateDensity(int posIndex, float smoothingRadius,
                          std::vector<int> &neighbors);
-  float calculateDensity(int posIndex, float smoothingRadius);
+  float calculateDensity(glm::vec3 pos, int neighborIndex,
+                         float smoothingRadius);
 
-  glm::vec3 CalulatePressureForce(int posIndex, float smoothingRadius);
+  glm::vec3 CalulatePressureForce(int posIndex, int neighborIndex,
+                                  float smoothingRadius);
   glm::vec3 CalulatePressureForce(int posIndex, float smoothingRadius,
                                   std::vector<int> &neighbors);
 
